@@ -13,7 +13,8 @@ import lombok.Data;
 public class Account {
 
     @DatabaseField(generatedId = true, columnName = "person_id")
-    Long personId;
+    Long
+            personId;
     @DatabaseField(columnName = "person_name")
     String personName;
     @DatabaseField(columnName = "account_number")

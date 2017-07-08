@@ -8,9 +8,6 @@ import javax.ws.rs.core.MediaType;
 
 import static java.util.stream.Collectors.*;
 
-/**
- * Root resource (exposed at "service" path)
- */
 @Path("service")
 public class MyResource {
 
