@@ -12,23 +12,26 @@ import lombok.Data;
 @DatabaseTable(tableName = "account")
 public class Account {
 
-    @DatabaseField(generatedId = true, columnName = "person_id")
-    Long
-            personId;
-    @DatabaseField(columnName = "person_name")
-    String personName;
+    @DatabaseField(generatedId = true, columnName = "acc_id")
+    Long accId;
+    @DatabaseField(columnName = "acc_owner_name")
+    String accOwnerName;
     @DatabaseField(columnName = "account_number")
     Long accountNumber;
     @DatabaseField(columnName = "amount")
-    Double amount;
+    Long amount;
+
+    @DatabaseField(columnName = "account_type")
+    String type;
 
     @Override
     public String toString() {
         return "Account{" +
-                "personId=" + personId +
-                ", personName='" + personName + '\'' +
+                "accId=" + accId +
+                ", accOwnerName='" + accOwnerName + '\'' +
                 ", accountNumber=" + accountNumber +
                 ", amount=" + amount +
+                ", type='" + type + '\'' +
                 '}';
     }
 }

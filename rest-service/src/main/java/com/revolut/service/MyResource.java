@@ -1,36 +1,42 @@
 package com.revolut.service;
 
+import com.revolut.model.Account;
+import com.revolut.model.TransferResponse;
+
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
-import static java.util.stream.Collectors.*;
+import java.util.List;
 
 @Path("service")
 public class MyResource {
 
     @GET
-    @Produces(MediaType.TEXT_PLAIN)
-    public String getIt() {
-        return "Got it!";
-    }
-
-    @GET
     @Path("/all")
-    @Produces(MediaType.TEXT_PLAIN)
-    public String getAccounts() throws Exception {
-        return AccountService.getAll().stream().map(c -> c.toString()).collect(joining("\n"));
+    @Produces(MediaType.APPLICATION_JSON)
+    public List<Account> getAccounts() throws Exception {
+        return AccountService.getAll();
     }
 
     @GET
     @Path("/{id}")
-    @Produces(MediaType.TEXT_PLAIN)
-    public String getAccount(@PathParam("id") Long personId) throws Exception {
-        return AccountService.getItem(personId) == null ?
-                String.format("Sorry, but user with person id= %s not found", personId):
-                AccountService.getItem(personId).toString();
+    @Produces(MediaType.APPLICATION_JSON)
+    public Account getAccount(@PathParam("id") Long accId) throws Exception {
+        return AccountService.getItem(accId);
+    }
+
+    @GET
+    @Path("/from/{acc1}/to/{acc2}/currency/{cur}/amount/{amount}")
+    @Produces(MediaType.APPLICATION_JSON)
+    public TransferResponse transfer(@PathParam("acc1") Long acc1,
+                                     @PathParam("acc2") Long acc2,
+                                     @PathParam("cur") String cur,
+                                     @PathParam("amount") Long amount) {
+        //TODO
+        return null;
     }
 
 }

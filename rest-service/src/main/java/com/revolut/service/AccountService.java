@@ -2,6 +2,7 @@ package com.revolut.service;
 
 import com.revolut.db.DbManager;
 import com.revolut.model.Account;
+import com.revolut.model.TransferResponse;
 
 import java.sql.SQLException;
 import java.util.List;
@@ -31,5 +32,10 @@ public class AccountService {
 
     public static Account getItem(Long id) throws SQLException {
         return dbManager.getItem(id);
+    }
+
+    public static TransferResponse transfer(Long acc1, Long acc2, String currency, Long amount) throws SQLException {
+        //TODO
+        return null;
     }
 }
