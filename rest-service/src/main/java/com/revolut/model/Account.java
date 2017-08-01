@@ -24,6 +24,9 @@ public class Account {
     @DatabaseField(columnName = "account_type")
     String type;
 
+    @DatabaseField(columnName = "acc_user_id")
+    Long accUserId;
+
     @Override
     public String toString() {
         return "Account{" +

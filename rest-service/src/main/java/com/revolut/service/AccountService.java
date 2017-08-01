@@ -34,8 +34,7 @@ public class AccountService {
         return dbManager.getItem(id);
     }
 
-    public static TransferResponse transfer(Long acc1, Long acc2, String currency, Long amount) throws SQLException {
-        //TODO
-        return null;
+    public static TransferResponse transfer(Long acc1, Long acc2, Long amount) throws Exception {
+        return dbManager.transfer(acc1, acc2, amount);
     }
 }

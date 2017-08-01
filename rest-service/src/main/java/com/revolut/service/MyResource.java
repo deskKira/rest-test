@@ -9,6 +9,7 @@ import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 
+import java.sql.SQLException;
 import java.util.List;
 
 @Path("service")
@@ -29,14 +30,12 @@ public class MyResource {
     }
 
     @GET
-    @Path("/from/{acc1}/to/{acc2}/currency/{cur}/amount/{amount}")
+    @Path("/transfer/from/{acc1}/to/{acc2}/amount/{amount}")
     @Produces(MediaType.APPLICATION_JSON)
     public TransferResponse transfer(@PathParam("acc1") Long acc1,
                                      @PathParam("acc2") Long acc2,
-                                     @PathParam("cur") String cur,
-                                     @PathParam("amount") Long amount) {
-        //TODO
-        return null;
+                                     @PathParam("amount") Long amount) throws Exception {
+        return AccountService.transfer(acc1, acc2, amount);
     }
 
 }
