@@ -19,19 +19,15 @@ public class AccountService {
     private static DbManager dbManager;
 
     private AccountService() {
-        try {
-            dbManager = new DbManager();
-        } catch (SQLException e) {
-            logger.log(Level.WARNING, e.getMessage());
-        }
+        dbManager = new DbManager("main");
     }
 
     public static List<Account> getAll() throws SQLException {
-        return dbManager.getAll();
+        return dbManager.getAllAccounts();
     }
 
     public static Account getItem(Long id) throws SQLException {
-        return dbManager.getItem(id);
+        return dbManager.getAccount(id);
     }
 
     public static TransferResponse transfer(Long acc1, Long acc2, Long amount) throws Exception {

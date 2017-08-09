@@ -1,35 +1,160 @@
 package com.revolut.db;
 
 import com.j256.ormlite.dao.Dao;
-import com.j256.ormlite.dao.DaoManager;
 import com.j256.ormlite.jdbc.JdbcConnectionSource;
 import com.j256.ormlite.support.ConnectionSource;
 import com.revolut.model.*;
+import com.sun.org.apache.xml.internal.resolver.readers.ExtendedXMLCatalogReader;
+import org.sqlite.SQLiteConnection;
 
-import java.sql.SQLException;
+import java.sql.*;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Logger;
+
+import static com.revolut.db.Scripts.*;
 
 /**
  * Created by monster on 07.07.17.
  */
 public class DbManager {
-    private final String url = "jdbc:sqlite:main";
-    private ConnectionSource source;
-    private Dao<Account, Long> dao;
 
-    public DbManager() throws SQLException {
-        source = new JdbcConnectionSource(url);
-        dao = DaoManager.createDao(source, Account.class);
+    private static final Logger log = Logger.getLogger(DbManager.class.getName());
+
+    private final String url = "jdbc:sqlite";
+    private String fileName = "main";
+
+    public DbManager() {
+
     }
 
-    public List<Account> getAll() throws SQLException {
-        return dao.queryForAll();
+    public DbManager(String dbFileName) {
+        fileName = dbFileName;
     }
 
-    public Account getItem(Long id) throws SQLException {
-        return dao.queryForId(id);
+    public SQLiteConnection getDbConnection() throws SQLException {
+        SQLiteConnection connection = new SQLiteConnection(url, fileName);
+        return connection;
+    }
+
+    public void closeDbConnection(SQLiteConnection connection) throws SQLException {
+        if (connection != null && !connection.isClosed()) {
+            connection.close();
+        }
+    }
+
+    public List<Account> getAllAccounts() throws SQLException {
+        SQLiteConnection connection = null;
+        Statement statement = null;
+        ResultSet rs = null;
+
+        try {
+            connection = getDbConnection();
+            statement = connection.createStatement();
+            rs = statement.executeQuery(LIST_ACCOUNT_QUERY);
+
+            List<Account> accounts = new ArrayList<>();
+            while (rs.next()) {
+                Account account = new Account();
+                account.setAccId(rs.getLong("acc_id"));
+                account.setAccountNumber(rs.getLong("account_number"));
+                account.setAmount(rs.getLong("amount"));
+                account.setAccOwnerName(rs.getString("acc_owner_name"));
+                account.setAccUserId(rs.getLong("acc_user_id"));
+                account.setType(rs.getString("account_type"));
+                accounts.add(account);
+            }
+            return accounts;
+        } catch (Exception e) {
+            log.info("Error when calling getAll() accounts");
+            throw new SQLException(e);
+        } finally {
+            rs.close();
+            statement.close();
+            closeDbConnection(connection);
+        }
+
+    }
+
+    public Account getAccount(Long id) throws SQLException {
+        SQLiteConnection connection = null;
+        PreparedStatement statement = null;
+        ResultSet rs = null;
+
+        try {
+            connection = getDbConnection();
+            statement = connection.prepareStatement(ITEM_ACCOUNT_QUERY);
+            statement.setLong(1, id.longValue());
+            rs = statement.executeQuery();
+            Account account = new Account();
+            if (rs.next()) {
+                account.setAccId(rs.getLong("acc_id"));
+                account.setAccountNumber(rs.getLong("account_number"));
+                account.setAmount(rs.getLong("amount"));
+                account.setAccOwnerName(rs.getString("acc_owner_name"));
+                account.setAccUserId(rs.getLong("acc_user_id"));
+                account.setType(rs.getString("account_type"));
+
+            }
+            return account;
+        } catch (Exception e) {
+            log.info("error:"+e.getMessage());
+            throw new SQLException(e);
+        } finally {
+            rs.close();
+            statement.close();
+            closeDbConnection(connection);
+        }
+    }
+
+    public List<Account> getAccountsByUserId(Long userId) throws SQLException {
+        SQLiteConnection connection = null;
+        PreparedStatement statement = null;
+        ResultSet rs = null;
+        List<Account> accounts = null;
+        try {
+            connection = getDbConnection();
+            statement = connection.prepareStatement(ACCOUNTS_BY_USER_ID);
+            statement.setLong(1, userId.longValue());
+            rs = statement.executeQuery();
+            accounts = new ArrayList<Account>();
+            if (rs.next()) {
+                Account account = new Account();
+                account.setAccId(rs.getLong("acc_id"));
+                account.setAccountNumber(rs.getLong("account_number"));
+                account.setAmount(rs.getLong("amount"));
+                account.setAccOwnerName(rs.getString("acc_owner_name"));
+                account.setAccUserId(rs.getLong("acc_user_id"));
+                account.setType(rs.getString("account_type"));
+                accounts.add(account);
+            }
+            return accounts;
+        } catch (Exception e) {
+            log.info("error:"+ e.getMessage());
+            throw new SQLException(e);
+        } finally {
+            rs.close();
+            statement.close();
+            closeDbConnection(connection);
+        }
+    }
+
+    public Statement updateAmountByAccount(SQLiteConnection connection, Long amount, Long account) throws SQLException {
+        PreparedStatement statement = null;
+        try {
+            statement = connection.prepareStatement(UPDATE_AMOUNT_BY_ACC_NUMBER);
+            statement.setLong(1, amount.longValue());
+            statement.setLong(2, account.longValue());
+            statement.execute();
+            return statement;
+        } catch (Exception e) {
+            log.info("error:"+ e.getMessage());
+            throw new SQLException(e);
+        } finally {
+            statement.close();
+        }
     }
 
     public TransferResponse transfer(Long acc1, Long acc2, Long amount) {
@@ -39,12 +164,12 @@ public class DbManager {
                     doTransfer(acc1, acc2, amount);
                     return generateResponse(ResponseCode.OK);
                 } else {
-                    Map<Account, Long> accounts = checkOtherClientAccounts(acc1, amount);
+                    Map<Account, Long> accounts = checkOtherClientAccounts(acc1, acc2, amount);
                     doTransfer(accounts, acc2);
                     return generateResponse(ResponseCode.OK);
                 }
             } else {
-                Map<Account, Long> accounts = checkOtherClientAccounts(acc1, amount);
+                Map<Account, Long> accounts = checkOtherClientAccounts(acc1, acc2, amount);
                 doTransfer(accounts, acc2);
                 return generateResponse(ResponseCode.OK);
             }
@@ -54,15 +179,13 @@ public class DbManager {
         }
     }
 
-    private Map<Account, Long> checkOtherClientAccounts(Long writeOffAccount, Long amount) throws Exception {
-        Map<String, Object> map = new HashMap<String, Object>();
-        Account account = dao.queryForId(writeOffAccount);
-        map.put("accUserId", account.getAccUserId());
+    private Map<Account, Long> checkOtherClientAccounts(Long writeOffAccount, Long writeOnAmount, Long amount) throws Exception {
+        Account account = getAccount(writeOffAccount);
+        Account accountOn = getAccount(writeOnAmount);
+        List<Account> accountsByUser = getAccountsByUserId(account.getAccUserId());
 
-        List<Account> accountsByUser = dao.queryForFieldValues(map);
-
-        Map<Account, Long> sumAmountsByAccounts = chechThatFundsSufficient(accountsByUser, account, amount);
-        if (isEnoughMoney(sumAmountsByAccounts, account, amount)) {
+        Map<Account, Long> sumAmountsByAccounts = chechThatFundsSufficient(accountsByUser, accountOn, amount);
+        if (isEnoughMoney(sumAmountsByAccounts, accountOn, amount)) {
             return sumAmountsByAccounts;
         } else {
             throw new Exception("insufficient funds error");
@@ -70,19 +193,19 @@ public class DbManager {
     }
 
     private boolean checkThatSingleCurrency(Long acc1, Long acc2) throws SQLException {
-        Account writeOffAccount = dao.queryForId(acc1);
-        Account writeOnAccount = dao.queryForId(acc2);
-        if (!writeOffAccount.getType().equals(writeOnAccount)) { return false; }
+        Account writeOffAccount = getAccount(acc1);
+        Account writeOnAccount = getAccount(acc2);
+        if (!writeOffAccount.getType().equals(writeOnAccount.getType())) { return false; }
         return true;
     }
 
-    private Map<Account, Long> chechThatFundsSufficient(List<Account> accounts, Account writeOffAccount, Long amount) throws Exception {
-        String typeAcc = writeOffAccount.getType();
+    private Map<Account, Long> chechThatFundsSufficient(List<Account> accounts, Account writeOnAccount, Long amount) throws Exception {
+        String typeAcc = writeOnAccount.getType();
         Map<Account, Long> withdrawalFromAccounts = new HashMap<Account, Long>();
 
         Long totalAmount = amount;
         for (Account account : accounts) {
-            Long value = convertCurrency(AccountType.valueOf(typeAcc).getCurrencyCode(), AccountType.valueOf(account.getType()).getCurrencyCode(), amount);
+            Long value = convertCurrency(AccountType.valueOf(account.getType()).getCurrencyCode(), AccountType.valueOf(typeAcc).getCurrencyCode(), amount);
             if (account.getAmount().compareTo(value) >= 0) {
                 withdrawalFromAccounts.put(account, value);
                 break;
@@ -98,10 +221,10 @@ public class DbManager {
     }
 
 
-    private boolean isEnoughMoney(Map<Account, Long> withdrawalFromAccounts, Account writeOffAmount, Long totalAmount) throws Exception {
+    private boolean isEnoughMoney(Map<Account, Long> withdrawalFromAccounts, Account writeOnAmount, Long totalAmount) throws Exception {
         long sumAmounts = 0L;
         for (Map.Entry<Account, Long> entry : withdrawalFromAccounts.entrySet()) {
-             sumAmounts += convertCurrency(AccountType.valueOf(entry.getKey().getType()).getCurrencyCode(), AccountType.valueOf(writeOffAmount.getType()).getCurrencyCode(), totalAmount);
+             sumAmounts += convertCurrency(AccountType.valueOf(entry.getKey().getType()).getCurrencyCode(), AccountType.valueOf(writeOnAmount.getType()).getCurrencyCode(), totalAmount);
         }
         if (sumAmounts >= totalAmount.longValue()) {
             return true;
@@ -146,39 +269,45 @@ public class DbManager {
     }
 
     private boolean checkAmount(Long acc1, Long amount) throws SQLException {
-        Account acc = dao.queryForId(acc1);
+        Account acc = getAccount(acc1);
         if (acc.getAmount().compareTo(amount) < 0) { return false; }
         else { return true; }
     }
 
     private void doTransfer(Long acc1, Long acc2, Long amount) throws Exception {
-        Account account1 = dao.queryForId(acc1);
-        Account account2 = dao.queryForId(acc2);
+        Account account1 = getAccount(acc1);
+        Account account2 = getAccount(acc2);
 
         account1.setAmount(account1.getAmount().longValue() - amount.longValue());
         account2.setAmount(account2.getAmount().longValue() + amount.longValue());
 
+        SQLiteConnection connection = null;
+
         try {
-            dao.setAutoCommit(source.getReadWriteConnection(), false);
-            dao.update(account1);
-            dao.update(account2);
-            dao.commit(source.getReadWriteConnection());
+            connection = getDbConnection();
+            connection.setAutoCommit(false);
+
+            updateAmountByAccount(connection, account1.getAmount().longValue(), account1.getAccountNumber());
+            updateAmountByAccount(connection, account2.getAmount().longValue(), account2.getAccountNumber());
+
+            connection.commit();
         } catch (SQLException e) {
             System.err.println("Error with code:" +e.getErrorCode());
+            connection.rollback();
             throw new Exception(e);
         } finally {
-            dao.rollBack(source.getReadWriteConnection());
+            closeDbConnection(connection);
         }
 
     }
 
-    private void doTransferWithoutAutoCommit(Account acc1, Long account2, Long amount) throws Exception {
-        Account acc2 = dao.queryForId(account2);
-        acc1.setAmount(acc1.getAmount().longValue() - amount.longValue());
+    private void doTransferWithoutAutoCommit(SQLiteConnection connection, Account acc1, Long account2, Long amount) throws Exception {
+        Account acc2 = getAccount(account2);
+        acc1.setAmount(acc1.getAmount().longValue() - convertCurrency(AccountType.valueOf(acc2.getType()).getCurrencyCode(), AccountType.valueOf(acc1.getType()).getCurrencyCode(), amount));
         acc2.setAmount(acc2.getAmount().longValue() + amount.longValue());
         try {
-            dao.update(acc1);
-            dao.update(acc2);
+            updateAmountByAccount(connection, acc1.getAmount(), acc1.getAccountNumber());
+            updateAmountByAccount(connection, acc2.getAmount(), acc2.getAccountNumber());
         } catch (SQLException e) {
             System.err.println("Error with code:" +e.getErrorCode());
             throw new Exception(e);
@@ -186,17 +315,20 @@ public class DbManager {
     }
 
     private void doTransfer(Map<Account, Long> fromAccounts, Long toAccount) throws Exception {
+        SQLiteConnection connection = null;
         try {
-            dao.setAutoCommit(source.getReadWriteConnection(), false);
+            connection = getDbConnection();
+            connection.setAutoCommit(false);
             for (Map.Entry<Account, Long> entry : fromAccounts.entrySet()) {
-                doTransferWithoutAutoCommit(entry.getKey(), toAccount, entry.getValue());
+                doTransferWithoutAutoCommit(connection, entry.getKey(), toAccount, entry.getValue());
             }
-            dao.commit(source.getReadWriteConnection());
+            connection.commit();
         } catch (Exception e) {
             System.err.println("Error transfer process!");
+            connection.rollback();
             throw new Exception(e);
         } finally {
-            dao.rollBack(source.getReadWriteConnection());
+            closeDbConnection(connection);
         }
 
     }

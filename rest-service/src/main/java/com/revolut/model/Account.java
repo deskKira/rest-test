@@ -9,23 +9,31 @@ import lombok.Data;
  */
 
 @Data
-@DatabaseTable(tableName = "account")
 public class Account {
 
-    @DatabaseField(generatedId = true, columnName = "acc_id")
     Long accId;
-    @DatabaseField(columnName = "acc_owner_name")
+
     String accOwnerName;
-    @DatabaseField(columnName = "account_number")
+
     Long accountNumber;
-    @DatabaseField(columnName = "amount")
+
     Long amount;
 
-    @DatabaseField(columnName = "account_type")
     String type;
 
-    @DatabaseField(columnName = "acc_user_id")
     Long accUserId;
+
+    public Account() {
+    }
+
+    public Account(Long accId, String accOwnerName, Long accountNumber, Long amount, String type, Long accUserId) {
+        this.accId = accId;
+        this.accOwnerName = accOwnerName;
+        this.accountNumber = accountNumber;
+        this.amount = amount;
+        this.type = type;
+        this.accUserId = accUserId;
+    }
 
     @Override
     public String toString() {

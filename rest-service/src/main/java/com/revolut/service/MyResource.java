@@ -29,6 +29,7 @@ public class MyResource {
         return AccountService.getItem(accId);
     }
 
+
     @GET
     @Path("/transfer/from/{acc1}/to/{acc2}/amount/{amount}")
     @Produces(MediaType.APPLICATION_JSON)
@@ -37,5 +38,4 @@ public class MyResource {
                                      @PathParam("amount") Long amount) throws Exception {
         return AccountService.transfer(acc1, acc2, amount);
     }
-
 }
