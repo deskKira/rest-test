@@ -1,10 +1,6 @@
 package com.revolut.db;
 
-import com.j256.ormlite.dao.Dao;
-import com.j256.ormlite.jdbc.JdbcConnectionSource;
-import com.j256.ormlite.support.ConnectionSource;
 import com.revolut.model.*;
-import com.sun.org.apache.xml.internal.resolver.readers.ExtendedXMLCatalogReader;
 import org.sqlite.SQLiteConnection;
 
 import java.sql.*;
@@ -120,7 +116,7 @@ public class DbManager {
             statement.setLong(1, userId.longValue());
             rs = statement.executeQuery();
             accounts = new ArrayList<Account>();
-            if (rs.next()) {
+            while (rs.next()) {
                 Account account = new Account();
                 account.setAccId(rs.getLong("acc_id"));
                 account.setAccountNumber(rs.getLong("account_number"));
@@ -180,12 +176,13 @@ public class DbManager {
     }
 
     private Map<Account, Long> checkOtherClientAccounts(Long writeOffAccount, Long writeOnAmount, Long amount) throws Exception {
+        Long totalAmount = amount;
         Account account = getAccount(writeOffAccount);
         Account accountOn = getAccount(writeOnAmount);
         List<Account> accountsByUser = getAccountsByUserId(account.getAccUserId());
 
-        Map<Account, Long> sumAmountsByAccounts = chechThatFundsSufficient(accountsByUser, accountOn, amount);
-        if (isEnoughMoney(sumAmountsByAccounts, accountOn, amount)) {
+        Map<Account, Long> sumAmountsByAccounts = chechThatFundsSufficient(accountsByUser, account, amount);
+        if (isEnoughMoney(sumAmountsByAccounts, account, totalAmount)) {
             return sumAmountsByAccounts;
         } else {
             throw new Exception("insufficient funds error");
@@ -199,32 +196,46 @@ public class DbManager {
         return true;
     }
 
-    private Map<Account, Long> chechThatFundsSufficient(List<Account> accounts, Account writeOnAccount, Long amount) throws Exception {
-        String typeAcc = writeOnAccount.getType();
+    private Map<Account, Long> chechThatFundsSufficient(List<Account> accounts, Account writeOffAccount, Long amount) throws Exception {
         Map<Account, Long> withdrawalFromAccounts = new HashMap<Account, Long>();
-
-        Long totalAmount = amount;
+        
         for (Account account : accounts) {
-            Long value = convertCurrency(AccountType.valueOf(account.getType()).getCurrencyCode(), AccountType.valueOf(typeAcc).getCurrencyCode(), amount);
-            if (account.getAmount().compareTo(value) >= 0) {
-                withdrawalFromAccounts.put(account, value);
-                break;
-            } else {
-                long remain = value.longValue() - account.getAmount().longValue();
-                withdrawalFromAccounts.put(account, value.longValue() - remain);
-                amount = remain;
-                continue;
-            }
+            Long value = convertCurrency(AccountType.valueOf(account.getType()).getCurrencyCode(), AccountType.valueOf(writeOffAccount.getType()).getCurrencyCode(), account.getAmount().longValue());
 
+            if (writeOffAccount.getType().equals(account.getType())) {
+                if (value.compareTo(amount) >= 0) {
+                    withdrawalFromAccounts.put(account, amount);
+                    break;
+                } else {
+                    long remain = amount.longValue() - value.longValue();
+                    withdrawalFromAccounts.put(account, amount.longValue() - remain);
+                    amount = changeAmountValue(amount, remain);
+                    continue;
+                }
+            } else {
+                if (value.compareTo(amount) >= 0) {
+                    withdrawalFromAccounts.put(account, convertCurrency(AccountType.valueOf(writeOffAccount.getType()).getCurrencyCode(), AccountType.valueOf(account.getType()).getCurrencyCode(), amount));
+                    break;
+                } else {
+                    long remain = amount.longValue() - value.longValue();
+                    withdrawalFromAccounts.put(account, convertCurrency(AccountType.valueOf(writeOffAccount.getType()).getCurrencyCode(), AccountType.valueOf(account.getType()).getCurrencyCode(), amount.longValue() - remain));
+                    amount = changeAmountValue(amount, remain);
+                    continue;
+                }
+            }
         }
         return withdrawalFromAccounts;
     }
 
+    private Long changeAmountValue(Long amount, long remain) {
+        amount = Long.valueOf(remain);
+        return amount;
+    }
 
     private boolean isEnoughMoney(Map<Account, Long> withdrawalFromAccounts, Account writeOnAmount, Long totalAmount) throws Exception {
         long sumAmounts = 0L;
         for (Map.Entry<Account, Long> entry : withdrawalFromAccounts.entrySet()) {
-             sumAmounts += convertCurrency(AccountType.valueOf(entry.getKey().getType()).getCurrencyCode(), AccountType.valueOf(writeOnAmount.getType()).getCurrencyCode(), totalAmount);
+             sumAmounts += convertCurrency(AccountType.valueOf(entry.getKey().getType()).getCurrencyCode(), AccountType.valueOf(writeOnAmount.getType()).getCurrencyCode(), entry.getKey().getAmount());
         }
         if (sumAmounts >= totalAmount.longValue()) {
             return true;
@@ -232,7 +243,6 @@ public class DbManager {
             return false;
         }
     }
-
 
     private Long convertCurrency(int fromCurrCode, int toCurrCode, long amount) throws Exception {
         long resultAmount = 0L;
@@ -244,6 +254,9 @@ public class DbManager {
                 else if (AccountType.DOLLAR.getCurrencyCode() == toCurrCode) {
                     resultAmount = Math.round(amount * CrossCourceCurrency.EUROTOUSD.getFactor());
                 }
+                else if (AccountType.EURO.getCurrencyCode() == toCurrCode) {
+                    resultAmount = amount;
+                }
                 break;
             case 840:
                 if (AccountType.RUBLE.getCurrencyCode() == toCurrCode) {
@@ -252,6 +265,9 @@ public class DbManager {
                 else if (AccountType.EURO.getCurrencyCode() == toCurrCode) {
                     resultAmount = Math.round(amount * CrossCourceCurrency.USDTOEURO.getFactor());
                 }
+                else if (AccountType.DOLLAR.getCurrencyCode() == toCurrCode) {
+                    resultAmount = amount;
+                }
                 break;
             case 643:
                 if (AccountType.EURO.getCurrencyCode() == toCurrCode) {
@@ -259,6 +275,9 @@ public class DbManager {
                 }
                 else if (AccountType.DOLLAR.getCurrencyCode() == toCurrCode) {
                     resultAmount = Math.round(amount * CrossCourceCurrency.RUBTOUSD.getFactor());
+                }
+                else if (AccountType.RUBLE.getCurrencyCode() == toCurrCode) {
+                    resultAmount = amount;
                 }
                 break;
             default:
@@ -298,13 +317,12 @@ public class DbManager {
         } finally {
             closeDbConnection(connection);
         }
-
     }
 
     private void doTransferWithoutAutoCommit(SQLiteConnection connection, Account acc1, Long account2, Long amount) throws Exception {
         Account acc2 = getAccount(account2);
-        acc1.setAmount(acc1.getAmount().longValue() - convertCurrency(AccountType.valueOf(acc2.getType()).getCurrencyCode(), AccountType.valueOf(acc1.getType()).getCurrencyCode(), amount));
-        acc2.setAmount(acc2.getAmount().longValue() + amount.longValue());
+        acc1.setAmount(acc1.getAmount().longValue() - amount.longValue());
+        acc2.setAmount(acc2.getAmount().longValue() + convertCurrency(AccountType.valueOf(acc1.getType()).getCurrencyCode(), AccountType.valueOf(acc2.getType()).getCurrencyCode(), amount.longValue()).longValue());
         try {
             updateAmountByAccount(connection, acc1.getAmount(), acc1.getAccountNumber());
             updateAmountByAccount(connection, acc2.getAmount(), acc2.getAccountNumber());
