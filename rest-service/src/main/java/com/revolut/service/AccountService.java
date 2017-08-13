@@ -3,10 +3,10 @@ package com.revolut.service;
 import com.revolut.db.DbManager;
 import com.revolut.model.Account;
 import com.revolut.model.TransferResponse;
+import com.revolut.runner.ServiceRunner;
 
 import java.sql.SQLException;
 import java.util.List;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -19,7 +19,7 @@ public class AccountService {
     private static DbManager dbManager;
 
     private AccountService() {
-        dbManager = new DbManager("main");
+        dbManager = new DbManager(ServiceRunner.getPathToDb());
     }
 
     public static List<Account> getAll() throws SQLException {

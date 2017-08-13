@@ -102,7 +102,7 @@
                         <manifest>
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>dependency-jars/</classpathPrefix>
-                            <mainClass>com.revolut.rest.Main</mainClass>
+                            <mainClass>com.revolut.runner.ServiceRunner</mainClass>
                         </manifest>
                     </archive>
                 </configuration>

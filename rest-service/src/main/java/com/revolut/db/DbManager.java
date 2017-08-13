@@ -1,7 +1,9 @@
 package com.revolut.db;
 
 import com.revolut.model.*;
+import com.revolut.runner.ServiceRunner;
 import org.sqlite.SQLiteConnection;
+import sun.applet.Main;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -20,7 +22,7 @@ public class DbManager {
     private static final Logger log = Logger.getLogger(DbManager.class.getName());
 
     private final String url = "jdbc:sqlite";
-    private String fileName = "main";
+    private String fileName = ServiceRunner.getPathToDb();
 
     public DbManager() {
 
@@ -248,35 +250,35 @@ public class DbManager {
         long resultAmount = 0L;
         switch (fromCurrCode) {
             case 978:
-                if (AccountType.RUBLE.getCurrencyCode() == toCurrCode) {
-                    resultAmount = Math.round(amount * CrossCourceCurrency.EUROTORUB.getFactor());
+                if (AccountType.RUB.getCurrencyCode() == toCurrCode) {
+                    resultAmount = Math.round(amount * CrossCourceCurrency.EURRUB.getFactor());
                 }
-                else if (AccountType.DOLLAR.getCurrencyCode() == toCurrCode) {
-                    resultAmount = Math.round(amount * CrossCourceCurrency.EUROTOUSD.getFactor());
+                else if (AccountType.USD.getCurrencyCode() == toCurrCode) {
+                    resultAmount = Math.round(amount * CrossCourceCurrency.EURUSD.getFactor());
                 }
-                else if (AccountType.EURO.getCurrencyCode() == toCurrCode) {
+                else if (AccountType.EUR.getCurrencyCode() == toCurrCode) {
                     resultAmount = amount;
                 }
                 break;
             case 840:
-                if (AccountType.RUBLE.getCurrencyCode() == toCurrCode) {
-                    resultAmount = Math.round(amount * CrossCourceCurrency.USDTORUB.getFactor());
+                if (AccountType.RUB.getCurrencyCode() == toCurrCode) {
+                    resultAmount = Math.round(amount * CrossCourceCurrency.USDRUB.getFactor());
                 }
-                else if (AccountType.EURO.getCurrencyCode() == toCurrCode) {
-                    resultAmount = Math.round(amount * CrossCourceCurrency.USDTOEURO.getFactor());
+                else if (AccountType.EUR.getCurrencyCode() == toCurrCode) {
+                    resultAmount = Math.round(amount * CrossCourceCurrency.USDEUR.getFactor());
                 }
-                else if (AccountType.DOLLAR.getCurrencyCode() == toCurrCode) {
+                else if (AccountType.USD.getCurrencyCode() == toCurrCode) {
                     resultAmount = amount;
                 }
                 break;
             case 643:
-                if (AccountType.EURO.getCurrencyCode() == toCurrCode) {
-                    resultAmount = Math.round(amount * CrossCourceCurrency.RUBTOEURO.getFactor());
+                if (AccountType.EUR.getCurrencyCode() == toCurrCode) {
+                    resultAmount = Math.round(amount * CrossCourceCurrency.RUBEUR.getFactor());
                 }
-                else if (AccountType.DOLLAR.getCurrencyCode() == toCurrCode) {
-                    resultAmount = Math.round(amount * CrossCourceCurrency.RUBTOUSD.getFactor());
+                else if (AccountType.USD.getCurrencyCode() == toCurrCode) {
+                    resultAmount = Math.round(amount * CrossCourceCurrency.RUBUSD.getFactor());
                 }
-                else if (AccountType.RUBLE.getCurrencyCode() == toCurrCode) {
+                else if (AccountType.RUB.getCurrencyCode() == toCurrCode) {
                     resultAmount = amount;
                 }
                 break;

@@ -22,7 +22,6 @@ public class DbManagerTest {
 
     @BeforeClass
     public static void initDbFile() throws IOException, SQLException {
-        System.out.println("before class");
         File file = new File("main_test.db");
         file.createNewFile();
         connection = new SQLiteConnection("jdbc:sqlite", "main_test.db");
@@ -33,7 +32,6 @@ public class DbManagerTest {
 
     @Before
     public void beforeSetUp() throws SQLException {
-        System.out.println("before test");
         Statement statement = connection.createStatement();
         statement.addBatch(DATA_ACC1);
         statement.addBatch(DATA_ACC2);
@@ -49,11 +47,11 @@ public class DbManagerTest {
     @Test
     public void getAllTest() throws SQLException {
         DbManager manager = new DbManager("main_test.db");
-        Account account1 = new Account(1L, "Vasya Kupcov",222222222222222222L,30000L,"EURO",11L);
-        Account account2 = new Account(2L, "Ivan Demidov",111111111111111111L,24000L,"DOLLAR",12L);
-        Account account3 = new Account(3L, "Natali Lafore" ,111111111111111123L,10000L,"RUBLE",31L);
-        Account account4 = new Account(4L, "Vasya Kupcov",222222222222222223L,23000L,"DOLLAR",11L);
-        Account account5 = new Account(5L, "Natali Lafore",111111111111111127L, 20000L,"DOLLAR", 31L);
+        Account account1 = new Account(1L, "Vasya Kupcov",222222222222222222L,30000L,"EUR",11L);
+        Account account2 = new Account(2L, "Ivan Demidov",111111111111111111L,24000L,"USD",12L);
+        Account account3 = new Account(3L, "Natali Lafore" ,111111111111111123L,10000L,"RUB",31L);
+        Account account4 = new Account(4L, "Vasya Kupcov",222222222222222223L,23000L,"USD",11L);
+        Account account5 = new Account(5L, "Natali Lafore",111111111111111127L, 20000L,"USD", 31L);
 
         List<Account> accounts = manager.getAllAccounts();
 
@@ -67,7 +65,7 @@ public class DbManagerTest {
     @Test
     public void getItemTest() throws SQLException {
         DbManager manager = new DbManager("main_test.db");
-        Account account = new Account(4L, "Vasya Kupcov",222222222222222223L,23000L,"DOLLAR",11L);
+        Account account = new Account(4L, "Vasya Kupcov",222222222222222223L,23000L,"USD",11L);
         Account result = manager.getAccount(account.getAccountNumber());
 
         assertEquals(account.getAccOwnerName(), result.getAccOwnerName());
@@ -79,8 +77,8 @@ public class DbManagerTest {
     @Test
     public void testAccToAccWithOneCurrency() throws SQLException {
         DbManager manager = new DbManager("main_test.db");
-        Account account2 = new Account(2L, "Ivan Demidov",111111111111111111L,24000L,"DOLLAR",12L);
-        Account account4 = new Account(4L, "Vasya Kupcov",222222222222222223L,23000L,"DOLLAR",11L);
+        Account account2 = new Account(2L, "Ivan Demidov",111111111111111111L,24000L,"USD",12L);
+        Account account4 = new Account(4L, "Vasya Kupcov",222222222222222223L,23000L,"USD",11L);
 
         manager.transfer(account2.getAccountNumber(), account4.getAccountNumber(), 3000L);
         Account acc2 = manager.getAccount(account2.getAccountNumber());
@@ -93,8 +91,8 @@ public class DbManagerTest {
     @Test
     public void testAccToAccWithDifferentCurrency() throws SQLException {
         DbManager manager = new DbManager("main_test.db");
-        Account testAccount1 = new Account(1L, "Vasya Kupcov",222222222222222222L,30000L,"EURO",11L);
-        Account testAccount2 = new Account(2L, "Ivan Demidov",111111111111111111L,24000L,"DOLLAR",12L);
+        Account testAccount1 = new Account(1L, "Vasya Kupcov",222222222222222222L,30000L,"EUR",11L);
+        Account testAccount2 = new Account(2L, "Ivan Demidov",111111111111111111L,24000L,"USD",12L);
         manager.transfer(testAccount1.getAccountNumber(), testAccount2.getAccountNumber(), 10000L);
 
         Account account1 = manager.getAccount(testAccount1.getAccountNumber());
@@ -107,9 +105,9 @@ public class DbManagerTest {
     @Test
     public void testAccToAccWithDiffCurrAndShortageOfFundsOnOneOfThem() throws SQLException {
         DbManager manager = new DbManager("main_test.db");
-        Account testAccount2 = new Account(2L, "Ivan Demidov",111111111111111111L,24000L,"DOLLAR",12L);
-        Account testAccount3 = new Account(3L, "Natali Lafore" ,111111111111111123L,10000L,"RUBLE",31L);
-        Account testAccount5 = new Account(5L, "Natali Lafore",111111111111111127L, 20000L,"DOLLAR", 31L);
+        Account testAccount2 = new Account(2L, "Ivan Demidov",111111111111111111L,24000L,"USD",12L);
+        Account testAccount3 = new Account(3L, "Natali Lafore" ,111111111111111123L,10000L,"RUB",31L);
+        Account testAccount5 = new Account(5L, "Natali Lafore",111111111111111127L, 20000L,"USD", 31L);
 
         manager.transfer(testAccount3.getAccountNumber(), testAccount2.getAccountNumber(), 20000L);
 
@@ -124,7 +122,6 @@ public class DbManagerTest {
 
     @After
     public void afterSetUp() throws SQLException {
-        System.out.println("after test");
         Statement statement = connection.createStatement();
         statement.execute(DEL_ACC);
         statement.close();
@@ -132,7 +129,6 @@ public class DbManagerTest {
 
     @AfterClass
     public static void destroyDbFile() throws SQLException {
-        System.out.println("after class");
         Statement statement = connection.createStatement();
         statement.close();
         connection.close();
